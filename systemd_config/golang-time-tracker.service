@@ -1,0 +1,13 @@
+[Unit]
+Description=time tracker for work
+After=network.target
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+Restart=always
+RestartSec=1
+ExecStart=/home/mjs/bin/t serve
+
+[Install]
+WantedBy=multi-user.target

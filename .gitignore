@@ -1,0 +1,4 @@
+server/test-db
+d3_resources/
+**.swp
+pkg/watcher/base

@@ -1,0 +1,56 @@
+<html>
+  <head>
+<script type="text/javascript">
+  window.addEventListener('DOMContentLoaded', (event) => {
+    let ts = document.getElementsByClassName("timer");
+    let x = Math.floor(80/ts.length);
+    for (t of ts) {
+      t.style.width = x + "vw";
+      t.style.height = x + "vw";
+    }
+  })
+</script>
+<style type="text/css">
+body {
+  display: flex;
+  margin: 0;
+}
+.timer_vpadding {
+  margin: auto 0;
+  width: 100%;
+  height: 100%
+}
+.timer_hpadding {
+  margin-left: auto;
+  margin-right: auto;
+}
+.timer_box {
+  background-color: lightgray;
+  display: flex;
+  flex-wrap: nowrap;
+  justify-content: center;
+}
+.timer {
+  margin: 20px;
+  background-color: #3894;
+  width: 15vw;
+  height: 15vw;
+  min-width: 150px;
+  min-height: 150px;
+  max-width: 200px;
+  max-height: 200px;
+}
+</style>
+  </head>
+  <body>
+    <div class="timer_vpadding"><div class="timer_hpadding">
+      <main class="timer_box">
+        <div class="timer">Time</div>
+        <div class="timer">Time</div>
+        <div class="timer">Time</div>
+        <div class="timer">Time</div>
+        <div class="timer">Time</div>
+      </main>
+    </div></div>
+  </body>
+</html>
