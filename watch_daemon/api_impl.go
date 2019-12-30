@@ -64,6 +64,7 @@ type watch struct {
 	start time.Time
 }
 
+// dbWatchInfo corresponds to a record in the watches table
 type dbWatchInfo struct {
 	// dir is the directory being watched
 	dir string
