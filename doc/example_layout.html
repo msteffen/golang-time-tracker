@@ -1,5 +1,9 @@
 <html>
   <head>
+<!--
+This code allows for reasonable sizing when the
+number of timers is != 5
+-->
 <script type="text/javascript">
   window.addEventListener('DOMContentLoaded', (event) => {
     let ts = document.getElementsByClassName("timer");
@@ -15,14 +19,10 @@ body {
   display: flex;
   margin: 0;
 }
-.timer_vpadding {
-  margin: auto 0;
+.timer_padding {
+  margin: auto auto;
   width: 100%;
   height: 100%
-}
-.timer_hpadding {
-  margin-left: auto;
-  margin-right: auto;
 }
 .timer_box {
   background-color: lightgray;
@@ -43,7 +43,7 @@ body {
 </style>
   </head>
   <body>
-    <div class="timer_vpadding"><div class="timer_hpadding">
+    <div class="timer_padding">
       <main class="timer_box">
         <div class="timer">Time</div>
         <div class="timer">Time</div>
@@ -51,6 +51,6 @@ body {
         <div class="timer">Time</div>
         <div class="timer">Time</div>
       </main>
-    </div></div>
+    </div>
   </body>
 </html>
