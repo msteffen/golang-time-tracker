@@ -130,8 +130,8 @@ func dayRow(c *client.Client, morning time.Time, includeEndGap bool) (string, er
 func weekCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "week",
-		Short: "Show this week's time-tracking activity",
-		Long:  "Show this week's time-tracking activity",
+		Short: "Show this week's activity",
+		Long:  "Show this week's activity",
 		Run: BoundedCommand(0, 0, func(args []string) error {
 			c, err := getCLIClient()
 			if err != nil {
@@ -139,11 +139,12 @@ func weekCmd() *cobra.Command {
 			}
 
 			for tick := 0; ; tick = 2 - ((tick + 1) % 2) {
+				// Get time worked on the day of 'start'
 				// Note: Now() sets local time, which is necessary for watchd (which
-				// assumes Local time for all ticks)
+				// assumes Local time for all ticks). See
+				// https://github.com/msteffen/golang-time-tracker/issues/2)
 				start := morning(time.Now()).Add(-6 * 24 * time.Hour)
-				if tick > 0 {
-					// tick starts at 0 and then alternates between 1 and 2
+				if tick > 0 { // tick starts at 0 and then alternates between 1 and 2
 					fmt.Printf("\x1b[9F\x1b[J") // up nine lines & clear rest of screen
 				}
 				for day := 0; day < 7; day++ {
@@ -164,6 +165,38 @@ func weekCmd() *cobra.Command {
 					// advance to next day
 					start = start.Add(24 * time.Hour)
 				}
+				time.Sleep(time.Second)
+			}
+			return nil
+		}),
+	}
+}
+
+func todayCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "today",
+		Short: "Show today's activity",
+		Long:  "Show today's activity",
+		Run: BoundedCommand(0, 0, func(args []string) error {
+			c, err := getCLIClient()
+			if err != nil {
+				return err
+			}
+
+			// Get today's time worked and print a bar
+			morning := morning(time.Now())
+			for tick := 0; ; tick = 2 - ((tick + 1) % 2) {
+				// Note: Now() sets local time, which is necessary for watchd (which
+				// assumes Local time for all ticks). See
+				// https://github.com/msteffen/golang-time-tracker/issues/2)
+				if tick > 0 { // tick starts at 0 and then alternates between 1 and 2
+					fmt.Printf("\x1b[1F\x1b[K") // jump up one line & clear it
+				}
+				bar, err := dayRow(c, morning, tick == 1)
+				if err != nil {
+					return err
+				}
+				fmt.Println(bar)
 				time.Sleep(time.Second)
 			}
 			return nil
@@ -297,36 +330,14 @@ func main() {
 		Short: "T is the client for the golang-time-tracker server",
 		Long: "Client-side CLI for a time-tracking/time-gamifying tool that helps " +
 			"distractable people use their time more mindfully",
-		Run: BoundedCommand(0, 0, func(_ []string) error {
-			c, err := getCLIClient()
-			if err != nil {
-				return err
-			}
-
-			// Get today's time worked and print a bar
-			// Now() sets local time, which is important--see
-			// https://github.com/msteffen/golang-time-tracker/issues/2)
-			morning := morning(time.Now()) // "start" at the day before today, for the loop
-			for tick := 0; ; tick = 2 - ((tick + 1) % 2) {
-				if tick > 0 {
-					// tick starts at 0 and then alternates between 1 and 2
-					fmt.Printf("\x1b[1F\x1b[K") // jump up one line & clear it
-				}
-				bar, err := dayRow(c, morning, tick == 1)
-				if err != nil {
-					return err
-				}
-				fmt.Println(bar)
-				time.Sleep(time.Second)
-			}
-			return nil
-		}),
+		Run: weekCmd().Run, // default cmd is 't week'
 	}
 	rootCmd.AddCommand(serveCmd())
 	rootCmd.AddCommand(statusCmd())
 	rootCmd.AddCommand(tickCmd())
 	rootCmd.AddCommand(getWatchedCmd())
 	rootCmd.AddCommand(weekCmd())
+	rootCmd.AddCommand(todayCmd())
 	rootCmd.AddCommand(watchCmd())
 
 	binaryName = os.Args[0]
