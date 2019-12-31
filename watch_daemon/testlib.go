@@ -69,7 +69,7 @@ func StartTestServer(t *testing.T, tmpDir string) *TestServer {
 	if err != nil {
 		log.Fatalf("couldn't create test server listener: %v", err)
 	}
-	httpServer, err := ToHTTPServer(socketFile, testClock, ttAPI)
+	httpServer, err := ToHTTPServer(testClock, ttAPI)
 	if err != nil {
 		log.Fatalf("couldn't create test server HTTP wrapper: %v", err)
 	}
@@ -133,7 +133,7 @@ func (s *TestServer) Restart() {
 	if err != nil {
 		log.Fatalf("couldn't create test server listener: %v", err)
 	}
-	httpServer, err := ToHTTPServer(s.socketFile, s.TestingClock, ttAPI)
+	httpServer, err := ToHTTPServer(s.TestingClock, ttAPI)
 	if err != nil {
 		log.Fatalf("couldn't create test server HTTP wrapper: %v", err)
 	}

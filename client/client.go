@@ -8,7 +8,6 @@ import (
 	"io"
 	"net"
 	"net/http"
-	"path"
 	"strings"
 	"time"
 )
@@ -39,10 +38,13 @@ type Client struct {
 	path string
 }
 
-// url converts the API endpoint 'dest' into a full path that the golang http
-// library can use
+// url converts the API endpoint 'dest' into a pseudo-URL that the golang http
+// library can use. Note that the first path component after the protocol is
+// parsed as the domain, which is a mandatory component of a URL but is also
+// ignored when communicating over a unix socket, so we provide a standard
+// throwaway domain of "socket"
 func (c *Client) url(dest string) string {
-	return "http://unix" + path.Join(c.path, dest)
+	return "http://socket/" + strings.TrimPrefix(dest, "/")
 }
 
 func httpRespToError(resp *http.Response, err error) (*http.Response, error) {

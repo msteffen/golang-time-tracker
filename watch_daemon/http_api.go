@@ -187,6 +187,11 @@ func (d *httpServer) clear(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
+func (d *httpServer) notFound(w http.ResponseWriter, r *http.Request) {
+	log.Infof("request for unhandled path: %s", r.URL.Path)
+	http.Error(w, "404 page not found", http.StatusNotFound)
+}
+
 func (d *httpServer) status(w http.ResponseWriter, r *http.Request) {
 	// Unmarshal and validate request
 	if r.Method != "GET" {
@@ -257,20 +262,20 @@ func NewSocketListener(socketPath string) (net.Listener, error) {
 // can be shut down later (for tests).  Non-testing users will likely prefer
 // ServerOverHTTP, which calls, effectively,
 // ToHTTPServer(...).Serve()
-func ToHTTPServer(socketPath string, clock Clock, server client.TimeTrackerAPI) (*http.Server, error) {
+func ToHTTPServer(clock Clock, server client.TimeTrackerAPI) (*http.Server, error) {
 	h := httpServer{
 		clock:     clock,
 		apiServer: &LoggingAPI{inner: server},
 		startTime: time.Now(),
 	}
 	mux := http.NewServeMux()
-	mux.HandleFunc(socketPath+"/status", h.status)
-	mux.HandleFunc(socketPath+"/watch", h.watch)
-	mux.HandleFunc(socketPath+"/watches", h.getWatches)
-	mux.HandleFunc(socketPath+"/tick", h.tick)
-	mux.HandleFunc(socketPath+"/clear", h.clear)
-	mux.HandleFunc(socketPath+"/intervals", h.getIntervals)
-	mux.Handle(socketPath, http.NotFoundHandler()) // Return to non-endpoint calls with 404
+	mux.HandleFunc("/status", h.status)
+	mux.HandleFunc("/watch", h.watch)
+	mux.HandleFunc("/watches", h.getWatches)
+	mux.HandleFunc("/tick", h.tick)
+	mux.HandleFunc("/clear", h.clear)
+	mux.HandleFunc("/intervals", h.getIntervals)
+	mux.Handle("/", http.HandlerFunc(h.notFound)) // Return to non-endpoint calls with 404
 	return &http.Server{Handler: mux}, nil
 }
 
@@ -281,7 +286,7 @@ func ServeOverHTTP(socketPath string, clock Clock, server client.TimeTrackerAPI)
 	if err != nil {
 		log.Fatal(err.Error())
 	}
-	s, err := ToHTTPServer(socketPath, clock, server)
+	s, err := ToHTTPServer(clock, server)
 	if err != nil {
 		log.Fatal(err.Error())
 	}
