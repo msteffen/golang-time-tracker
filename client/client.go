@@ -85,9 +85,9 @@ func GetClient(path string) *Client {
 	return &Client{
 		Client: &http.Client{
 			Transport: &http.Transport{
-				DialContext: func(_ context.Context, _, _ string) (net.Conn, error) {
+				DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
 					dialer := &net.Dialer{Timeout: 5 * time.Second}
-					return dialer.Dial("unix", path)
+					return dialer.DialContext(ctx, "unix", path)
 				},
 			},
 		},
