@@ -318,7 +318,7 @@ func statusCmd() *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("error retrieving daemon status: %v", err)
 			}
-			fmt.Printf("time-tracker has been up for %s", resp)
+			fmt.Printf("time-tracker has been up for %s\n", resp)
 			return nil
 		}),
 	}
