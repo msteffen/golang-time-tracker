@@ -3,7 +3,6 @@ package watchd
 import (
 	"encoding/base64"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
@@ -16,16 +15,14 @@ import (
 	"github.com/google/uuid"
 )
 
-// testDir is initialized in TestMain--it contains db files and sockets for
-// every test
-var testDir string
+const testDir = "/dev/shm/time-tracker-test"
 
 const tEpsilon = 500 * time.Millisecond
 
 // TestParsing does a basic test of the TimeTracker API (registering 4 ticks
 // that create two intervals
 func TestParsing(t *testing.T) {
-	s := StartTestServer(t, testDir)
+	s := StartTestServer(t)
 	t.Log("Test server started")
 	ts := time.Date(
 		/* date */ 2017, 7, 1,
@@ -65,7 +62,7 @@ func TestParsing(t *testing.T) {
 // TestGetIntervalsBoundary checks that GetIntervals only returns intervals
 // within the given time range
 func TestGetIntervalsBoundary(t *testing.T) {
-	s := StartTestServer(t, testDir)
+	s := StartTestServer(t)
 	ts := time.Date(
 		/* date */ 2017, 7, 1,
 		/* time */ 6, 0, 0,
@@ -201,7 +198,7 @@ func randomSuffix(s string) string {
 }
 
 func TestWatchBasic(t *testing.T) {
-	s := StartTestServer(t, testDir)
+	s := StartTestServer(t)
 	ts := time.Date(
 		/* date */ 2017, 7, 1,
 		/* time */ 6, 0, 0,
@@ -216,7 +213,7 @@ func TestWatchBasic(t *testing.T) {
 }
 
 func TestMaxWatches(t *testing.T) {
-	s := StartTestServer(t, testDir)
+	s := StartTestServer(t)
 	dirPrefix := randomSuffix(t.Name())
 	ts := time.Date(
 		/* date */ 2017, 7, 1,
@@ -299,7 +296,7 @@ func TestMaxWatches(t *testing.T) {
 }
 
 func TestWatchesPersistOnRestart(t *testing.T) {
-	s := StartTestServer(t, testDir)
+	s := StartTestServer(t)
 	dirPrefix := randomSuffix(t.Name())
 	ts := time.Date(
 		/* date */ 2017, 7, 1,
@@ -336,7 +333,7 @@ func TestWatchesPersistOnRestart(t *testing.T) {
 	}
 
 	// restart test server
-	s.Restart()
+	s.Restart(t)
 	// TODO replace this sleep with a retry loop around the test below
 	time.Sleep(5 * time.Second)
 
@@ -345,29 +342,4 @@ func TestWatchesPersistOnRestart(t *testing.T) {
 		// test watch on 'dir'
 		testWritesCreateWorkInterval(s, dir)
 	}
-}
-
-func TestMain(m *testing.M) {
-	var errCode int
-	defer func() {
-		// make sure test failures case the test binary to return non-zero exit code
-		os.Exit(errCode)
-	}()
-
-	// create temporary directory for housing test data
-	var err error
-	// /dev/shm is a pre-mounted in-memory filesystem that exists by default on
-	// most linux distros (incl. ubuntu on my laptop)
-	testDir, err = ioutil.TempDir("/dev/shm", "time-tracker-test-")
-	if err != nil {
-		panic(fmt.Sprintf("could not create temporary directory for test data: %v", err))
-	}
-	defer func() {
-		if err := os.RemoveAll(testDir); err != nil {
-			panic(fmt.Sprintf("could not remove temp testing directory: %v", err))
-		}
-	}()
-
-	// In-memory test dir created--run tests
-	errCode = m.Run()
 }

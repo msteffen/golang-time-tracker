@@ -3,18 +3,36 @@ package watchd
 import (
 	"bytes"
 	"context"
-	"encoding/base64"
 	"fmt"
 	"net/http"
+	"os"
 	"path"
 	"testing"
 	"time"
 
-	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/msteffen/golang-time-tracker/client"
 	"github.com/msteffen/golang-time-tracker/pkg/check"
+)
+
+var (
+	// address is the address on which the test server serves. It's different
+	// from the default host port used by t serve (i.e. the default value of the
+	// --address flag defined in cli/t/main.go) so that I can run tests while a
+	// real instance of the time tracker is running
+	address = "localhost:9090"
+
+	// defaultDBDir is the default location of the DB file used by the test
+	// server. /dev/shm is a pre-mounted in-memory filesystem that exists by
+	// default on most linux distros (incl. ubuntu on my laptop)
+	dbDir = "/dev/shm/time-tracker-test"
+
+	// lastHTTPServer stores the most recent httpServer returned by
+	// StartTestServer. It will be shut down by any subsequent call to
+	// StartTestServer() (to guarantee that only one goro is listening on
+	// 'address' at a time
+	lastHTTPServer *http.Server
 )
 
 // ReadBody is a helper function that reads resp.Body into a buffer and returns
@@ -42,19 +60,20 @@ type TestServer struct {
 
 // StartTestServer brings up an in-process watch daemon, for the tests to talk
 // to
-func StartTestServer(t *testing.T, tmpDir string) *TestServer {
-	// even though 'tmpDir' is a tempdir, it's shared by all tests currently
-	// running. If we don't create a new temporary file for each invocation of
-	// StartTestServer, then go test ... -count=N won't work, as all runs of a
-	// given test will share the same DB and socket
-	u := uuid.New()
-	uuidStr := base64.RawURLEncoding.EncodeToString(u[:])
-	socketFile := path.Join(tmpDir, fmt.Sprintf("%s.%s.sock", t.Name(), uuidStr))
-	t.Logf("socketFile: %s\n", socketFile)
-	dbFile := path.Join(tmpDir, fmt.Sprintf("%s.%s.db", t.Name(), uuidStr))
+func StartTestServer(t *testing.T) *TestServer {
+	// 'dbDir' is shared by all tests currently running. If we don't remove the
+	// existing tmp directory for invocation of StartTestServer, then go test ...
+	// -count=N won't work, as all runs of a given test will share the same DB
+	if err := os.RemoveAll(dbDir); err != nil {
+		t.Fatalf("couldn't remove existing dir %q: %v", dbDir, err)
+	}
+	if err := os.Mkdir(dbDir, 0700); err != nil {
+		t.Fatalf("couldn't create dir %q: %v", dbDir, err)
+	}
+	dbFile := path.Join(dbDir, t.Name())
 	t.Logf("dbFile: %s", dbFile)
 
-	// Start server
+	// Create request handling struct
 	// Note: this used to use SQLite's ":memory:" built-in in-memory target, but
 	// it caused races between tests. Now, tmpDir should always be in /dev/shm,
 	// ubuntu's built-in ramfs mount, so this achieves the same thing (no
@@ -65,37 +84,42 @@ func StartTestServer(t *testing.T, tmpDir string) *TestServer {
 	if err != nil {
 		t.Fatalf("could not create API Server: %v", err)
 	}
-	l, err := NewSocketListener(socketFile)
-	if err != nil {
-		log.Fatalf("couldn't create test server listener: %v", err)
-	}
-	httpServer, err := ToHTTPServer(testClock, ttAPI)
-	if err != nil {
-		log.Fatalf("couldn't create test server HTTP wrapper: %v", err)
-	}
-	// Start serving requests
+	maxEventGap := ttAPI.(*server).maxEventGap
+
+	// Start listening for HTTP requests
 	testServer := &TestServer{
 		T:            t,
-		Client:       client.GetClient(socketFile),
+		Client:       &client.Client{Address: address},
 		TestingClock: testClock,
-		socketFile:   socketFile,
 		dbFile:       dbFile,
-		maxEventGap:  ttAPI.(*server).maxEventGap,
-		httpServer:   httpServer,
+		maxEventGap:  maxEventGap,
+		httpServer:   ToHTTPServer(address, testClock, ttAPI),
 	}
-	go httpServer.Serve(l)
-
-	// Wait until the server is up before proceeding
-	testServer.blockUntilActive()
+	testServer.StartServing(t)
 	return testServer
 }
 
-// blockUntilActive is a helper for s.Restart() and StartTestServer()
-func (s *TestServer) blockUntilActive() {
+func (ts *TestServer) StartServing(t *testing.T) {
+	// Shut down any prior HTTP server
+	if lastHTTPServer != nil {
+		if err := lastHTTPServer.Shutdown(context.Background()); err != nil {
+			t.Fatalf("couldn't shut down existing server: %v", err)
+		}
+	}
+	lastHTTPServer = ts.httpServer
+	go func() {
+		err := ts.httpServer.ListenAndServe()
+		if err != nil && err != http.ErrServerClosed {
+			// panic vs t.Fatalf() as this may run after the test has finished
+			panic(fmt.Sprintf("error from ts.ListenAndServe(): %v", err))
+		}
+	}()
+
+	// Wait until the server is up before proceeding
 	secs := 60
 	for i := 0; i < secs; i++ {
 		log.Infof("waiting until server is up to continue (%d/%d)", i, secs)
-		_, err := s.Client.Status()
+		_, err := ts.Client.Status()
 		if err == nil {
 			return // success
 		}
@@ -119,7 +143,7 @@ func (s *TestServer) TickAt(label string, intervals ...int64) {
 // Restart stops the TimeTrackerAPI server owned by 's', and then starts a new
 // one. This is useful for tests that validate the time tracker's startup
 // behavior (particularly with respect to watches)
-func (s *TestServer) Restart() {
+func (s *TestServer) Restart(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	ttAPI, err := NewServer(s.TestingClock, s.dbFile)
@@ -129,16 +153,7 @@ func (s *TestServer) Restart() {
 	if err := s.httpServer.Shutdown(ctx); err != nil {
 		log.Fatalf("couldn't shut down old test server: %v", err)
 	}
-	l, err := NewSocketListener(s.socketFile)
-	if err != nil {
-		log.Fatalf("couldn't create test server listener: %v", err)
-	}
-	httpServer, err := ToHTTPServer(s.TestingClock, ttAPI)
-	if err != nil {
-		log.Fatalf("couldn't create test server HTTP wrapper: %v", err)
-	}
-	s.httpServer = httpServer
+	s.httpServer = ToHTTPServer(address, s.TestingClock, ttAPI)
 	// Start serving requests
-	go httpServer.Serve(l)
-	s.blockUntilActive()
+	s.StartServing(t)
 }

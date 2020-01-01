@@ -2,11 +2,10 @@ package client
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"fmt"
 	"io"
-	"net"
+	"io/ioutil"
 	"net/http"
 	"strings"
 	"time"
@@ -34,17 +33,16 @@ func (e *HTTPError) Error() string {
 // Post requests sent to paths under a single destination. It also wraps non-200
 // http responses in an error.
 type Client struct {
-	*http.Client
-	path string
+	Address string
 }
 
-// url converts the API endpoint 'dest' into a pseudo-URL that the golang http
-// library can use. Note that the first path component after the protocol is
-// parsed as the domain, which is a mandatory component of a URL but is also
+// url converts the API endpoint 'address' into a pseudo-URL that the golang
+// http library can use. Note that the first path component after the protocol
+// is parsed as the domain, which is a mandatory component of a URL but is also
 // ignored when communicating over a unix socket, so we provide a standard
 // throwaway domain of "socket"
-func (c *Client) url(dest string) string {
-	return "http://socket/" + strings.TrimPrefix(dest, "/")
+func (c *Client) url(path string) string {
+	return "http://" + c.Address + "/" + strings.TrimPrefix(path, "/")
 }
 
 func httpRespToError(resp *http.Response, err error) (*http.Response, error) {
@@ -52,11 +50,14 @@ func httpRespToError(resp *http.Response, err error) (*http.Response, error) {
 		return resp, err
 	}
 	if resp.StatusCode != http.StatusOK {
-		var buf bytes.Buffer
-		buf.ReadFrom(resp.Body)
+		msgBytes, err := ioutil.ReadAll(resp.Body)
+		msg := string(bytes.TrimSpace(msgBytes))
+		if err != nil {
+			msg = fmt.Sprintf("time-tracker could not read response body: %v", err)
+		}
 		return nil, &HTTPError{
 			StatusCode: resp.StatusCode,
-			Message:    string(bytes.TrimSpace(buf.Bytes())),
+			Message:    msg,
 		}
 	}
 	return resp, err
@@ -64,37 +65,23 @@ func httpRespToError(resp *http.Response, err error) (*http.Response, error) {
 
 // Get is a convenience function for Get requests, that sends all such
 // requests to the client's socket path/URL.
-func (c *Client) Get(dest string) (*http.Response, error) {
-	return httpRespToError(c.Client.Get(c.url(dest)))
+func (c *Client) Get(path string) (*http.Response, error) {
+	return httpRespToError(http.DefaultClient.Get(c.url(path)))
 }
 
 // PostString is a convenience function for Post requests, that sends all such
 // requests to the client's socket path/URL.
-func (c *Client) PostString(dest string, body string) (*http.Response, error) {
-	return httpRespToError(c.Client.Post(c.url(dest), "application/json", strings.NewReader(body)))
+func (c *Client) PostString(address string, body string) (*http.Response, error) {
+	r := strings.NewReader(body)
+	return httpRespToError(
+		http.DefaultClient.Post(c.url(address), "application/json", r))
 }
 
 // Post is a convenience function for Post requests, that sends all such
 // requests to the client's socket path/URL.
-func (c *Client) Post(dest string, body io.Reader) (*http.Response, error) {
-	return httpRespToError(c.Client.Post(c.url(dest), "application/json", body))
-}
-
-// GetClient initializes a new client that sends all requests to the socket/URL
-// at 'path'.
-func GetClient(path string) *Client {
-	// Create the HTTP client and return it
-	return &Client{
-		Client: &http.Client{
-			Transport: &http.Transport{
-				DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
-					dialer := &net.Dialer{Timeout: 5 * time.Second}
-					return dialer.DialContext(ctx, "unix", path)
-				},
-			},
-		},
-		path: path,
-	}
+func (c *Client) Post(address string, body io.Reader) (*http.Response, error) {
+	return httpRespToError(
+		http.DefaultClient.Post(c.url(address), "application/json", body))
 }
 
 func (c *Client) Status() (time.Duration, error) {

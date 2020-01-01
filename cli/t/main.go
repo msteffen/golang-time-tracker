@@ -25,9 +25,9 @@ var (
 	/* const */ dbFile = dataDir + "/db"
 	/* const */ logFile = dataDir + "/watchd.stdout"
 	/* const */ errFile = dataDir + "/watchd.stderr"
-	/* const */ socketFile = dataDir + "/sock"
 
 	binaryName string // populated by main(), used by by getCLIClient()
+	address    string // set by flag
 )
 
 type couldNotConnectErr struct {
@@ -38,13 +38,12 @@ func (e couldNotConnectErr) Error() string {
 	return "could not connect to time-tracker watch daemon (even after attempting to start it): " + e.innerErr.Error()
 }
 
-func getCLIClient() (*client.Client, error) {
+func getCLIClient(addr string) (*client.Client, error) {
 	var err error
 	for retry := 0; retry < 2; retry++ {
 		// Try to connect naively
-		c := client.GetClient(socketFile)
-		_, err = c.Status()
-		if err == nil {
+		c := &client.Client{Address: addr}
+		if _, err = c.Status(); err == nil {
 			return c, nil
 		} else if retry > 0 {
 			break
@@ -133,7 +132,7 @@ func weekCmd() *cobra.Command {
 		Short: "Show this week's activity",
 		Long:  "Show this week's activity",
 		Run: BoundedCommand(0, 0, func(args []string) error {
-			c, err := getCLIClient()
+			c, err := getCLIClient(address)
 			if err != nil {
 				return err
 			}
@@ -178,7 +177,7 @@ func todayCmd() *cobra.Command {
 		Short: "Show today's activity",
 		Long:  "Show today's activity",
 		Run: BoundedCommand(0, 0, func(args []string) error {
-			c, err := getCLIClient()
+			c, err := getCLIClient(address)
 			if err != nil {
 				return err
 			}
@@ -211,7 +210,7 @@ func watchCmd() *cobra.Command {
 		Short: "Start watching the given project directory for writes",
 		Long:  "Start watching the given project directory for writes",
 		Run: BoundedCommand(1, 1, func(args []string) error {
-			c, err := getCLIClient()
+			c, err := getCLIClient(address)
 			if err != nil {
 				return err
 			}
@@ -238,7 +237,7 @@ func tickCmd() *cobra.Command {
 		Short: "Append a tick (work event) with the given label",
 		Long:  "Append a tick (work event) with the given label",
 		Run: BoundedCommand(1, 1, func(args []string) error {
-			c, err := getCLIClient()
+			c, err := getCLIClient(address)
 			if err != nil {
 				return err
 			}
@@ -253,7 +252,7 @@ func getWatchedCmd() *cobra.Command {
 		Short: "Print the directories being watched currently by the watch daemon",
 		Long:  "Print the directories being watched currently by the watch daemon",
 		Run: BoundedCommand(0, 0, func(args []string) error {
-			c, err := getCLIClient()
+			c, err := getCLIClient(address)
 			if err != nil {
 				return err
 			}
@@ -294,7 +293,7 @@ func serveCmd() *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("could not create APIServer: %v", err)
 			}
-			return watchd.ServeOverHTTP(socketFile, watchd.SystemClock, apiServer)
+			return watchd.ServeOverHTTP(address, watchd.SystemClock, apiServer)
 		}),
 	}
 	cmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "If set, increase the logging verbosity to include every request/response")
@@ -307,7 +306,7 @@ func statusCmd() *cobra.Command {
 		Short: "Give the status of the time-tracker watch daemon (or start if it it's stopped)",
 		Long:  "Give the status of the time-tracker watch daemon (or start if it it's stopped)",
 		Run: BoundedCommand(0, 0, func(args []string) error {
-			c, err := getCLIClient()
+			c, err := getCLIClient(address)
 			if err != nil {
 				return err
 			}
@@ -332,6 +331,8 @@ func main() {
 			"distractable people use their time more mindfully",
 		Run: weekCmd().Run, // default cmd is 't week'
 	}
+	rootCmd.PersistentFlags().StringVar(&address, "endpoint", "localhost:9091",
+		"the address of a currently running time-tracker server")
 	rootCmd.AddCommand(serveCmd())
 	rootCmd.AddCommand(statusCmd())
 	rootCmd.AddCommand(tickCmd())

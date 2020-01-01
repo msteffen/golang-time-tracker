@@ -200,13 +200,11 @@ func NewServer(clock Clock, dbPath string) (client.TimeTrackerAPI, error) {
 	// Create DB connection
 	db, err := sql.Open("sqlite3", dbPath)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("could not open DB: %v", err)
 	}
-	err = db.Ping()
-	for err != nil {
-		log.Print("Waiting for DB to start")
+	for err = db.Ping(); err != nil; err = db.Ping() {
+		log.Printf("Waiting for DB to start (last ping: %v)", err)
 		time.Sleep(time.Second)
-		err = db.Ping()
 	}
 	// Take advantage of sqlite INTEGER PRIMARY KEY table for fast range scan of
 	// ticks and watches: https://sqlite.org/lang_createtable.html#rowid

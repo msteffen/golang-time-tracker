@@ -2,12 +2,10 @@ package watchd
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"math"
 	"net"
 	"net/http"
-	"os"
 	p "path"
 	"strconv"
 	"time"
@@ -202,67 +200,12 @@ func (d *httpServer) status(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte(time.Now().Sub(d.startTime).String()))
 }
 
-// NewSocketListener is a helper for ServerOverHTTP, StartTestServer,
-// TestServer.Restart, and any other function that needs to start a
-// TimeTrackerAPI server. It creates a new golang net.Listener that's attached
-// to a socket at 'socketPath', and includes the ability to check for an
-// existing server (useful outside of tests, where time tracker servers
-// typically listen on $HOME/.time-tracker/sock) and delete the socket/retry if
-// the current socket is unused.
-func NewSocketListener(socketPath string) (net.Listener, error) {
-	var listener net.Listener
-	for retry := 0; retry < 3; retry++ {
-		// Stat socket file
-		info, err := os.Stat(socketPath)
-		log.Infof("socket stat error (socket should not exist): %v", err)
-		if err != nil {
-			if !os.IsNotExist(err) {
-				return nil, fmt.Errorf("could not stat socket at %q: %v", socketPath, err)
-			}
-
-			// Happy path: socket doesn't exist. Try to create it with net.Listen()
-			log.Infof("http server about to listen on %s", socketPath)
-			listener, err = net.Listen("unix", socketPath)
-			if err != nil {
-				log.Warningf("could not listen on unix socket at %s (will retry): %v",
-					socketPath, err)
-				continue
-			}
-			return listener, nil // success
-		} else {
-			// Check if socket is unexpected file type. Don't remove it in case it
-			// belongs to another application somehow
-			if info.Mode()&os.ModeType != os.ModeSocket {
-				return nil, fmt.Errorf("socket file had unexpected file type: %s (maybe "+
-					"it's owned by another application?)", info.Mode())
-			}
-
-			// See if server is running by sending request
-			_, err = client.GetClient(socketPath).Status()
-			if err == nil {
-				return nil, errors.New("watch daemon is already running")
-			}
-
-			// Socket is non-responsive, try to delete it
-			log.Warning("socket file exists but isn't responding to commands. " +
-				"Attempting to remove it...")
-			if err := os.Remove(socketPath); err != nil {
-				return nil, fmt.Errorf("could not remove watch daemon at %q. Try 'lsof "+
-					"%s'", socketPath, socketPath)
-			}
-		}
-	}
-	return nil, fmt.Errorf("watch daemon is already running with a socket "+
-		"at %q but not responding. Try: 'lsof %s'", socketPath, socketPath)
-}
-
 // ToHTTPServer wraps 'server' in a golang http.Server that uses 'server' to
-// serve the TimeTrackerAPI over HTTP on a new socket at 'socketPath'. This
-// function is a helper that returns the HTTP server to the caller so that it
-// can be shut down later (for tests).  Non-testing users will likely prefer
-// ServerOverHTTP, which calls, effectively,
-// ToHTTPServer(...).Serve()
-func ToHTTPServer(clock Clock, server client.TimeTrackerAPI) (*http.Server, error) {
+// serve the TimeTrackerAPI over HTTP on 'hostport'. This function is a helper
+// that returns the HTTP server to the caller so that it can be shut down later
+// (for tests). Non-testing users will likely prefer ServerOverHTTP, which
+// calls, effectively, ToHTTPServer(...).Serve()
+func ToHTTPServer(hostport string, clock Clock, server client.TimeTrackerAPI) *http.Server {
 	h := httpServer{
 		clock:     clock,
 		apiServer: &LoggingAPI{inner: server},
@@ -276,20 +219,27 @@ func ToHTTPServer(clock Clock, server client.TimeTrackerAPI) (*http.Server, erro
 	mux.HandleFunc("/clear", h.clear)
 	mux.HandleFunc("/intervals", h.getIntervals)
 	mux.Handle("/", http.HandlerFunc(h.notFound)) // Return to non-endpoint calls with 404
-	return &http.Server{Handler: mux}, nil
+	return &http.Server{
+		Addr:    hostport,
+		Handler: mux,
+	}
 }
 
-// ServeOverHTTP serves the Server API over HTTP, managing HTTP
-// reqests/responses
-func ServeOverHTTP(socketPath string, clock Clock, server client.TimeTrackerAPI) error {
-	l, err := NewSocketListener(socketPath)
-	if err != nil {
-		log.Fatal(err.Error())
+// ServeOverHTTP serves the Server API over HTTP, on the interface/port
+// specified by hostport
+func ServeOverHTTP(address string, clock Clock, server client.TimeTrackerAPI) error {
+	// Check for a running server
+	c := &client.Client{Address: address}
+	if _, err := c.Status(); err == nil {
+		_, port, err := net.SplitHostPort(address)
+		advice := fmt.Sprintf("(try 'sudo lsof -i :%s' to find the pid)", port)
+		if err != nil {
+			advice = fmt.Sprintf("(could not split hostport: %v)", err)
+		}
+		return fmt.Errorf("watch daemon is already running on address %q %s", address, advice)
 	}
-	s, err := ToHTTPServer(clock, server)
-	if err != nil {
-		log.Fatal(err.Error())
-	}
-	// Start serving requests
-	return s.Serve(l)
+
+	// Start listening on 'address'
+	s := ToHTTPServer(address, clock, server)
+	return s.ListenAndServe()
 }
