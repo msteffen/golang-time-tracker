@@ -200,6 +200,21 @@ func (d *httpServer) status(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte(time.Now().Sub(d.startTime).String()))
 }
 
+func (d *httpServer) viz(w http.ResponseWriter, r *http.Request) {
+	// Unmarshal and validate request
+	if r.Method != "GET" {
+		http.Error(w, "must use GET to access /viz", http.StatusMethodNotAllowed)
+		return
+	}
+	log.Infof("/viz: %v", time.Now().Sub(d.startTime).String())
+	t := TodayOp{
+		Server: d.apiServer,
+		Now:    d.clock.Now(),
+		Writer: w,
+	}
+	t.Start()
+}
+
 // ToHTTPServer wraps 'server' in a golang http.Server that uses 'server' to
 // serve the TimeTrackerAPI over HTTP on 'hostport'. This function is a helper
 // that returns the HTTP server to the caller so that it can be shut down later
@@ -212,6 +227,7 @@ func ToHTTPServer(hostport string, clock Clock, server client.TimeTrackerAPI) *h
 		startTime: time.Now(),
 	}
 	mux := http.NewServeMux()
+	mux.HandleFunc("/viz", h.viz)
 	mux.HandleFunc("/status", h.status)
 	mux.HandleFunc("/watch", h.watch)
 	mux.HandleFunc("/watches", h.getWatches)

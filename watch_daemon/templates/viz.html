@@ -1,10 +1,11 @@
 <html>
-  <head>
+<head>
 <!--
 This code allows for reasonable sizing when the
 number of timers is != 5
 -->
 <script type="text/javascript">
+  days = {{.}}
   window.addEventListener('DOMContentLoaded', (event) => {
     let ts = document.getElementsByClassName("timer");
     let x = Math.floor(80/ts.length);
@@ -41,16 +42,16 @@ body {
   max-height: 200px;
 }
 </style>
-  </head>
-  <body>
-    <div class="timer_padding">
-      <main class="timer_box">
-	<div class="timer"> <!-- d3 clock --> </div>
-        <div class="timer"> <!-- d3 clock --> </div>
-        <div class="timer"> <!-- d3 clock --> </div>
-        <div class="timer"> <!-- d3 clock --> </div>
-        <div class="timer"> <!-- d3 clock --> </div>
-      </main>
-    </div>
-  </body>
+</head>
+<body>
+<div class="timer_padding">
+<main class="timer_box">
+<div class="timer"> <!-- d3 clock --> </div>
+<div class="timer"> <!-- d3 clock --> </div>
+<div class="timer"> <!-- d3 clock --> </div>
+<div class="timer"> <!-- d3 clock --> </div>
+<div class="timer"> <!-- d3 clock --> </div>
+</main>
+</div>
+</body>
 </html>

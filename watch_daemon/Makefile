@@ -1,18 +1,19 @@
-test:
-	go test -v .
+DEBUG=false
+OUTPUT_NAME=generated_template_assets.go
+# PKG=$(shell basename "${PWD}")
+PKG=watchd
 
-test-interactive:
-	@test "$(test)" = "" && { \
-		/bin/echo -e "\n***\nNeed test to run. Run \047make test=XYZ test-interactive\047\n***\n" >&2; \
-		exit 1; \
-	} || true
-	rm bindata.go && go-bindata -debug ./today.html.template
-	TIMETRACKER_INTERACTIVE_TESTS=on go test -v . -run "$(test)"
+go-bindata:
+	which go-bindata || go get -u github.com/go-bindata/go-bindata/...
 
-bin: ./pkg/web/bindata.go
-	go build ./server
+$(OUTPUT_NAME): go-bindata
+	rm -f $(OUTPUT_NAME)
+	echo $(PKG)
+ifeq '$(DEBUG)' 'true'
+	@# If you want to change the output, just use -pkg and -o to change the package and destination file
+	go-bindata -debug -pkg $(PKG) -o $(OUTPUT_NAME) ./templates/*
+else
+	go-bindata -pkg $(PKG) -o $(OUTPUT_NAME) ./templates/*
+endif
 
-.PHONY: \
-	test \
-	bin \
-
+.PHONY: go-bindata $(OUTPUT_NAME)
