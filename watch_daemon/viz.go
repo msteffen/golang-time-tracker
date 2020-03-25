@@ -19,7 +19,7 @@ type day struct {
 // TodayOp has all of the internal data structures retrieved/computed while
 // generating the /viz HTML page
 // Generating HTML templates:
-//go:generate make generated_template_assets.go
+//go:generate make generated_assets.go
 type TodayOp struct {
 	//// Not Owned
 	// The 'server' that handles incoming requests
@@ -58,7 +58,7 @@ func (t *TodayOp) Start() {
 	}
 
 	// Compute divs and place generated divs into HTML template
-	data, err := Asset(`templates/viz.html`)
+	data, err := Asset(`assets/viz.html`)
 	if err != nil {
 		http.Error(t.Writer, "could not load today.html.template: "+err.Error(),
 			http.StatusInternalServerError)

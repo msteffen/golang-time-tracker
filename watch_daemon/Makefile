@@ -1,5 +1,5 @@
 DEBUG=false
-OUTPUT_NAME=generated_template_assets.go
+OUTPUT_NAME=generated_assets.go
 # PKG=$(shell basename "${PWD}")
 PKG=watchd
 
@@ -11,9 +11,9 @@ $(OUTPUT_NAME): go-bindata
 	echo $(PKG)
 ifeq '$(DEBUG)' 'true'
 	@# If you want to change the output, just use -pkg and -o to change the package and destination file
-	go-bindata -debug -pkg $(PKG) -o $(OUTPUT_NAME) ./templates/*
+	go-bindata -debug -pkg $(PKG) -o $(OUTPUT_NAME) ./assets/*
 else
-	go-bindata -pkg $(PKG) -o $(OUTPUT_NAME) ./templates/*
+	go-bindata -pkg $(PKG) -o $(OUTPUT_NAME) ./assets/*
 endif
 
 .PHONY: go-bindata $(OUTPUT_NAME)

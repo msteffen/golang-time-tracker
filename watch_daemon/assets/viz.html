@@ -1,0 +1,38 @@
+<html>
+<head>
+<!--
+This code allows for reasonable sizing when the
+number of timers is != 5
+-->
+<script src="d3.v5.min.js"></script>
+<script src="d3clock.js"></script>
+<script type="text/javascript">
+  days = {{.}}
+  window.addEventListener('DOMContentLoaded', (event) => {
+    let ts = document.getElementsByClassName("timer");
+    let x = Math.floor(80/ts.length);
+    for (t of ts) {
+      t.style.width = x + "vw";
+      t.style.height = x + "vw";
+    }
+  })
+  let grp = d3.selectAll("svg.timer group").data(days)
+  AppendClock(grp, 100)
+</script>
+<link rel="stylesheet" type="text/css" href="clock.css"></link>
+</head>
+<body>
+<div class="timer_padding">
+<div class="timer_box">
+  <svg class="big timer"><group transform="translate(50%, 50%)"></group></svg>
+</div>
+<div class="timer_box">
+  <svg class="timer"><group transform="translate(50%, 50%)"></group></svg>
+  <svg class="timer"><group transform="translate(50%, 50%)"></group></svg>
+  <svg class="timer"><group transform="translate(50%, 50%)"></group></svg>
+  <svg class="timer"><group transform="translate(50%, 50%)"></group></svg>
+  <svg class="timer"><group transform="translate(50%, 50%)"></group></svg>
+</div>
+</div>
+</body>
+</html>

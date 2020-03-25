@@ -1,0 +1,65 @@
+body {
+  display: flex;
+  margin: 0;
+}
+
+.timer_padding {
+  margin: auto auto;
+  width: 100%;
+  height: 100%
+}
+
+.timer_box {
+  background-color: lightgray;
+  display: flex;
+  flex-wrap: nowrap;
+  justify-content: center;
+}
+
+.timer {
+  margin: 20px;
+  background-color: #3894;
+  width: 15vw;
+  height: 15vw;
+  min-width: 150px;
+  min-height: 150px;
+  max-width: 200px;
+  max-height: 200px;
+}
+
+.big {
+  margin: 0 20px;
+  width: 25vw;
+  height: 25vw;
+  min-width: 250px;
+  min-height: 250px;
+  max-width: 300px;
+  max-height: 300px;
+}
+
+path.background {
+  fill: LightGray
+}
+
+path.clocklines {
+  stroke: black;
+  stroke-width: 1.5pt;
+}
+
+path.worktimes {
+  fill: orange;
+  stroke: #fda300;  /* slightly darker orange */
+  stroke-width: 2pt;
+  stroke-opacity: 0.8;
+  fill-opacity: 0.5;
+}
+
+body {
+  text-align: center;
+}
+
+text.clock-text {
+  font-family: sans-serif;
+  font-weight: bold;
+  text-anchor: middle;
+}
