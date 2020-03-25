@@ -8,6 +8,7 @@ import (
 	"net/http"
 	p "path"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/msteffen/golang-time-tracker/client"
@@ -185,7 +186,22 @@ func (d *httpServer) clear(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-func (d *httpServer) notFound(w http.ResponseWriter, r *http.Request) {
+func (d *httpServer) misc(w http.ResponseWriter, r *http.Request) {
+	validFiletype := strings.HasSuffix(r.URL.Path, "js") ||
+		strings.HasSuffix(r.URL.Path, "css")
+	if r.Method == "GET" && validFiletype {
+		data, err := Asset(p.Join("assets", r.URL.Path))
+		if err == nil {
+			switch {
+			case strings.HasSuffix(r.URL.Path, "js"):
+				w.Header().Set("Content-Type", "text/javascript")
+			case strings.HasSuffix(r.URL.Path, "css"):
+				w.Header().Set("Content-Type", "text/css")
+			}
+			w.Write(data)
+			return
+		}
+	}
 	log.Infof("request for unhandled path: %s", r.URL.Path)
 	http.Error(w, "404 page not found", http.StatusNotFound)
 }
@@ -234,7 +250,7 @@ func ToHTTPServer(hostport string, clock Clock, server client.TimeTrackerAPI) *h
 	mux.HandleFunc("/tick", h.tick)
 	mux.HandleFunc("/clear", h.clear)
 	mux.HandleFunc("/intervals", h.getIntervals)
-	mux.Handle("/", http.HandlerFunc(h.notFound)) // Return to non-endpoint calls with 404
+	mux.HandleFunc("/", h.misc) // Serve all other assets (js files, or just 404)
 	return &http.Server{
 		Addr:    hostport,
 		Handler: mux,
