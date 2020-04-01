@@ -10,7 +10,7 @@ body {
 }
 
 .timer_box {
-  background-color: lightgray;
+  background-color: white;
   display: flex;
   flex-wrap: nowrap;
   justify-content: center;
@@ -18,7 +18,7 @@ body {
 
 .timer {
   margin: 20px;
-  background-color: #3894;
+  /* background-color: #3894; */
   width: 15vw;
   height: 15vw;
   min-width: 150px;
@@ -27,8 +27,9 @@ body {
   max-height: 200px;
 }
 
-.big {
+.big_timer {
   margin: 0 20px;
+  /* background-color: #3894; */
   width: 25vw;
   height: 25vw;
   min-width: 250px;
@@ -38,7 +39,7 @@ body {
 }
 
 path.background {
-  fill: LightGray
+  fill: lightgray
 }
 
 path.clocklines {

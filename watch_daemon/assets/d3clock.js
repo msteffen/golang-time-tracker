@@ -1,5 +1,5 @@
 TAU = (2*Math.PI);
-MS_PER_DAY = 24*60*60*1000;
+S_PER_DAY = 3600*24;
 
 function I(start, end) {
   this.start = start;
@@ -9,18 +9,17 @@ function I(start, end) {
 // Paints the background of a clock in the svg group 'group', of radius
 // 'radius', centered at the origin.
 function appendClockBackground(group, radius) {
+  // paint gray background circle
   var R0 = 0.95*radius,  // leave a tiny margin
       R1 = 0.66*R0;
   var arc = d3.arc()
     .innerRadius(R0)
     .outerRadius(R1);
-    
-  // paint gray background circle
   group.append("path")
     .datum({startAngle: 0, endAngle: TAU})
     .attr("d", arc)
-    .attr("class", "background");
-    
+    .classed("background", true);
+
   // Paint tick lines for each hour around the circle (each 1/24 of
   // the way around).
   //
@@ -37,7 +36,6 @@ function appendClockBackground(group, radius) {
   for (let i=0; i<24; i++) {
     let _tick_inner = R0,
         _tick_outer = R0 + ((i%6===0?0.5:i%3===0?0.3:0.15)*(R1-R0));
-    console.log("_tick_inner: " + _tick_inner + " _tick_outer: " + _tick_outer);
     // Add three points to the path: beginning of tick, end of tick, undefined
     [ _tick_inner, _tick_outer ].forEach(R => {
       _tick_data.push({
@@ -48,70 +46,64 @@ function appendClockBackground(group, radius) {
     });
     _tick_data.push({defined: false});  // end each segment
   }
-  console.log(_tick_data)
-  
+
   let line = d3.line()
     .defined(d => d.defined)
-    .x(d => d.defined?d.x:0)
-    .y(d => d.defined?d.y:0);
-  group.append("path")
+    .x(d => d.defined ? d.x : 0)
+    .y(d => d.defined ? d.y : 0);
+  let p = group.append("path")
     .datum(_tick_data)
     .attr("d", line)
-    .attr("class", "clocklines");
+    .classed("clocklines", true);
 }
 
-function appendTimeText(group, intervals, radius) {
-  let total_time=0;
-  for (let i=0; i<intervals.length; i++) {
-    total_time += intervals[i].end - intervals[i].start;
-  }
-  let minutes = Math.floor(total_time/(60*1000)),
-      hours = Math.floor(minutes/60);
-  minutes %= 60;
+function appendTimeText(group, radius) {
   group.append("text")
     .attr("font-size", 0.2*radius + "pt")
     .attr("dy", 0.35 + "em")
-    .attr("class", "clock-text")
-    .text(hours + "h " + minutes + "m");
+    .classed("clock-text", true)
+    .text(d => d.hours + "h " + d.minutes + "m");
 }
 
-function AppendClock(group, intervals, radius) {
+function AppendClock(svg) {
+  let rect = svg.node().getBoundingClientRect()
+  let radius = Math.min(rect.width, rect.height)/2
+  console.log("AppendClock | rect")
+  console.log(rect)
+  console.log("AppendClock | radius = " + radius)
+
+  // TODO datum(d => d) passes the interval data from the svg element to the
+  // group element. I think there might be a way to do this implicitly, but I
+  // don't know it
+  group = svg.append("g").datum(d => d)
+  group.attr("transform", "translate(" + radius + "," + radius + ")")
   appendClockBackground(group, radius);
-  appendTimeText(group, intervals, radius);
+  appendTimeText(group, radius);
+
+  // Paint work times
   let R0 = 0.95*radius,  // leave a tiny margin
       R1 = 0.66*R0;
   let arc = d3.arc()
     .innerRadius(R0)
-    .outerRadius(R1);
-  // Paint work times
-  arc.startAngle(d => (d.start * TAU)/MS_PER_DAY);
-  arc.endAngle(d => (d.end * TAU)/MS_PER_DAY);
-  group.selectAll("path.worktimes")
-    .data(intervals)
-    .enter()
-    .append("path")
-      .attr("d", arc)
-      .attr("class", "worktimes");
+    .outerRadius(R1)
+    .startAngle(d => (d.start * TAU)/S_PER_DAY)
+    .endAngle(d => (d.end * TAU)/S_PER_DAY);
+  let paths = svg.selectAll("g").selectAll("path.worktimes").data(d => {
+    let morning = (new Date(d.date)).getTime()/1000;
+    let new_intervals = [];
+     console.log(d);
+    for (let i of d.intervals) {
+      new_intervals.push({
+        start: i.start - morning,
+        end: i.end - morning,
+      });
+      console.log(new_intervals[new_intervals.length-1]);
+    }
+    console.log("AppendClock | new_intervals:");
+    console.log(new_intervals);
+    return new_intervals;
+  });
+  paths.enter().append("path")
+    .attr("d", arc)
+    .classed("worktimes", true);
 }
-
-// function addLine(group, radius, time, color) {
-//   MS_PER_6H = 6*60*60*1000;  // == MS_PER_DAY/4
-//   var x0 = 0.5*radius*Math.cos(((time - MS_PER_6H)*TAU)/MS_PER_DAY),
-//       y0 = 0.5*radius*Math.sin(((time - MS_PER_6H)*TAU)/MS_PER_DAY),
-//       x1 = radius*Math.cos(((time - MS_PER_6H)*TAU)/MS_PER_DAY),
-//       y1 = radius*Math.sin(((time - MS_PER_6H)*TAU)/MS_PER_DAY);
-//   if (color === undefined) color = "black";
-//   group.append("path")
-//     .datum([[x0, y0], [x1, y1]])
-//     .attr("d", d3.line())
-//     .attr("stroke", color);
-// }
-
-// compute the radius of the incircle of a rectangle with width 'width'
-// and height 'height'
-function inradius(width, height) {
-  return Math.min(width, height)/2;
-}
-
-// groups = d3.selectAll("svg.timer").data(days).update().append("group")
-// AppendClock(groups, ???, ???)

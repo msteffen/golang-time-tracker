@@ -8,30 +8,45 @@ number of timers is != 5
 <script src="d3clock.js"></script>
 <script type="text/javascript">
   days = {{.}}
-  window.addEventListener('DOMContentLoaded', (event) => {
-    let ts = document.getElementsByClassName("timer");
-    let x = Math.floor(80/ts.length);
-    for (t of ts) {
-      t.style.width = x + "vw";
-      t.style.height = x + "vw";
+  // Precompute properties of each day & set as field
+  for (let d of days) {
+    let total_time=0;
+    for (let d of days) {
+      for (let i of d.intervals) {
+        total_time += i.end - i.start;
+      }
     }
+    let minutes = Math.floor(total_time/(60*1000));
+    d.minutes = minutes%60;
+    d.hours = Math.floor(d.minutes/60);
+  }
+  window.addEventListener('DOMContentLoaded', (event) => {
+    // Draw big clock for today
+    let big_timer = d3.selectAll("svg.big_timer").datum(days[0])
+    AppendClock(big_timer)
+
+    // Draw all the little clocks for days before today
+    timers = d3.selectAll("svg.timer").data(days.slice(1))
+    timers.enter().append("svg").classed("timer", true)
+    timers.exit().remove()
+    let r = Math.floor(80/(days.length-1));
+    timers.style("width", r + "vw").style("height", r + "vw")
+    AppendClock(timers)
   })
-  let grp = d3.selectAll("svg.timer group").data(days)
-  AppendClock(grp, 100)
 </script>
 <link rel="stylesheet" type="text/css" href="clock.css"></link>
 </head>
 <body>
 <div class="timer_padding">
 <div class="timer_box">
-  <svg class="big timer"><group transform="translate(50%, 50%)"></group></svg>
+  <svg class="big_timer"></svg>
 </div>
 <div class="timer_box">
-  <svg class="timer"><group transform="translate(50%, 50%)"></group></svg>
-  <svg class="timer"><group transform="translate(50%, 50%)"></group></svg>
-  <svg class="timer"><group transform="translate(50%, 50%)"></group></svg>
-  <svg class="timer"><group transform="translate(50%, 50%)"></group></svg>
-  <svg class="timer"><group transform="translate(50%, 50%)"></group></svg>
+  <svg class="timer"></svg>
+  <svg class="timer"></svg>
+  <svg class="timer"></svg>
+  <svg class="timer"></svg>
+  <svg class="timer"></svg>
 </div>
 </div>
 </body>
