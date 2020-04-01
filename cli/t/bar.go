@@ -363,7 +363,6 @@ func Bar(morning time.Time, intervals []client.Interval) (res string) {
 					if ir.Sub(il) < time.Hour {
 						short = true
 					}
-					// fmt.Printf(">>> %s (%t)\n", ir.Sub(il), short)
 				}
 			}
 			if timecmp.Leq(cr, ir) {
