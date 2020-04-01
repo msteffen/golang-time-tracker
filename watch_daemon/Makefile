@@ -16,4 +16,10 @@ else
 	go-bindata -pkg $(PKG) -o $(OUTPUT_NAME) ./assets/*
 endif
 
-.PHONY: go-bindata $(OUTPUT_NAME)
+test-interactive: $(OUTPUT_NAME)
+	INTERACTIVE=true go test -v . -run TestInteractive -count 1
+
+.PHONY: \
+	test-interactive \
+	go-bindata \
+	$(OUTPUT_NAME)
