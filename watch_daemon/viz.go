@@ -61,6 +61,7 @@ type TodayOp struct {
 
 // Start begins rendering the "today" page
 func (t *TodayOp) Start() {
+	fmt.Printf(">>> Now: %v\n", t.Now)
 	for i := 0; i < 5; i++ {
 		t.days[i] = &day{
 			Date: time.Date(t.Now.Year(), t.Now.Month(), t.Now.Day()-4+i,

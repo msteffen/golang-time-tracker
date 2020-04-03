@@ -232,16 +232,23 @@ func NewServer(clock Clock, dbPath string) (client.TimeTrackerAPI, error) {
 // Tick handles the /tick http endpoint. Note that watch events don't go through
 // this endpoint because watch events should also update the last_write field of
 // the relevant watch (which happens in a transaction with the new tick)
-func (s *server) Tick(req *client.TickRequest) error {
+func (s *server) Tick(req *client.TickRequest) (*client.TickResponse, error) {
 	// Write tick to DB
 	s.dbMu.Lock()
 	defer s.dbMu.Unlock()
 
-	_, err := s.db.Exec(fmt.Sprintf(
-		"INSERT INTO ticks (time, labels) VALUES (%d, %q)",
-		s.clock.Now().Unix(), escape.Escape(req.Label),
-	))
-	return err
+	now := s.clock.Now().Unix()
+	var err error
+	if req != nil {
+		_, err = s.db.Exec(fmt.Sprintf(
+			"INSERT INTO ticks (time, labels) VALUES (%d, %q)",
+			now, escape.Escape(req.Label),
+		))
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &client.TickResponse{Now: now}, nil
 }
 
 // addWatchToDB is a helper for Watch(), which essentially wraps the part of a

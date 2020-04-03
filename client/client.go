@@ -100,12 +100,25 @@ func (c *Client) Status() (time.Duration, error) {
 	return dur, nil
 }
 
-// Tick is a convenience function that wraps the /tick URL endpoint
-func (c *Client) Tick(label string) error {
-	buf := bytes.Buffer{}
-	json.NewEncoder(&buf).Encode(TickRequest{Label: label})
-	_, err := c.Post("/tick", &buf)
-	return err
+// Tick is a convenience function that POSTs to the /tick URL endpoint
+func (c *Client) Tick(label string) (int64, error) {
+	var resp *http.Response
+	var err error
+	if label == "" {
+		resp, err = c.Get("/tick")
+	} else {
+		buf := bytes.Buffer{}
+		json.NewEncoder(&buf).Encode(TickRequest{Label: label})
+		resp, err = c.Post("/tick", &buf)
+	}
+	if err != nil {
+		return 0, err
+	}
+	var tickResp TickResponse
+	if err := json.NewDecoder(resp.Body).Decode(&tickResp); err != nil {
+		return 0, fmt.Errorf("error decoding response: %v", err)
+	}
+	return tickResp.Now, nil
 }
 
 // GetIntervals is a convenience function that wraps the /intervals URL endpoint

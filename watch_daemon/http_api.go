@@ -65,30 +65,38 @@ func (d *httpServer) watch(w http.ResponseWriter, r *http.Request) {
 
 func (d *httpServer) tick(w http.ResponseWriter, r *http.Request) {
 	// Unmarshal and validate request
-	if r.Method != "POST" {
+	if r.Method != "POST" && r.Method != "GET" {
 		http.Error(w, "must use POST to access /tick", http.StatusMethodNotAllowed)
 		return
 	}
-	var req client.TickRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		msg := fmt.Sprintf("request did not match expected type: %v", err)
-		http.Error(w, msg, http.StatusBadRequest)
-		return
-	}
-	if req.Label == "" {
-		msg := "tick request must have a label (\"\" is used to " +
-			"indicate intervals formed by the union of all ticks in GetIntervals"
-		http.Error(w, msg, http.StatusBadRequest)
+	var req *client.TickRequest
+	if r.Method == "POST" {
+		req = &client.TickRequest{}
+		if err := json.NewDecoder(r.Body).Decode(req); err != nil {
+			msg := fmt.Sprintf("request did not match expected type: %v", err)
+			http.Error(w, msg, http.StatusBadRequest)
+			return
+		}
+		if req.Label == "" {
+			msg := "tick request must have a label (\"\" is used to " +
+				"indicate intervals formed by the union of all ticks in GetIntervals"
+			http.Error(w, msg, http.StatusBadRequest)
+		}
 	}
 
 	// Process request
-	var err error
-	err = d.apiServer.Tick(&req)
+	resp, err := d.apiServer.Tick(req)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	w.WriteHeader(http.StatusOK)
+	respJSON, err := json.Marshal(resp)
+	if err != nil {
+		log.Errorf("could not serialize /tick result: %v", err)
+		http.Error(w, "could not serialize result: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Write(respJSON)
 }
 
 func (d *httpServer) getIntervals(w http.ResponseWriter, r *http.Request) {

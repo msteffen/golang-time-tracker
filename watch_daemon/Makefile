@@ -3,6 +3,9 @@ OUTPUT_NAME=generated_assets.go
 # PKG=$(shell basename "${PWD}")
 PKG=watchd
 
+test:
+	go test -v . -count 1
+
 go-bindata:
 	which go-bindata || go get -u github.com/go-bindata/go-bindata/...
 
@@ -22,4 +25,5 @@ test-interactive: $(OUTPUT_NAME)
 .PHONY: \
 	test-interactive \
 	go-bindata \
-	$(OUTPUT_NAME)
+	$(OUTPUT_NAME) \
+	test

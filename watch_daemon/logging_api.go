@@ -14,19 +14,19 @@ type LoggingAPI struct {
 // Watch implements the corresponding method of the APIServer interface, passing
 // the call to a.inner and logging the request and response
 func (a *LoggingAPI) Watch(req *client.WatchRequest) (retErr error) {
-	log.Infof("/watch <- %#v", req)
+	log.Infof("/watch <- %v", req)
 	defer func() {
-		log.Infof("/watch %#v -> %#v", req, retErr)
+		log.Infof("/watch %v -> %v", req, retErr)
 	}()
 	return a.inner.Watch(req)
 }
 
 // Tick implements the corresponding method of the APIServer interface, passing
 // the call to a.inner and logging the request and response
-func (a *LoggingAPI) Tick(req *client.TickRequest) (retErr error) {
-	log.Infof("/tick <- %#v", req)
+func (a *LoggingAPI) Tick(req *client.TickRequest) (resp *client.TickResponse, retErr error) {
+	log.Infof("/tick <- %v", req)
 	defer func() {
-		log.Infof("/tick %#v -> %#v", req, retErr)
+		log.Infof("/tick %v -> %v, %v", req, resp, retErr)
 	}()
 	return a.inner.Tick(req)
 }
@@ -65,7 +65,7 @@ func (a *LoggingAPI) GetWatches(req *client.GetWatchesRequest) (resp *client.Get
 func (a *LoggingAPI) Clear() (retErr error) {
 	log.Infof("/clear")
 	defer func() {
-		log.Infof("/clear -> %#v", retErr)
+		log.Infof("/clear -> %v", retErr)
 	}()
 	return a.inner.Clear()
 }

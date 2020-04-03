@@ -1,10 +1,18 @@
 package client
 
-// TickRequest is an object sent to the /tick http endpoint, to indicate a file
-// save or some other task-related action has occurred
+// TickRequest is an object that can be POSTed to the /tick http endpoint, to
+// indicate a file save or some other task-related action has occurred
 type TickRequest struct {
 	// Label identifies the task on which the user is currently working
 	Label string `json:"label"`
+}
+
+// TickResponse is returned from the /tick http endpoint in responsed to a GET
+// or POSTed TickRequest. It indicates the server's current time (all ticks are
+// recorded at the server's current time) and that a POST, if any, succeeded.
+type TickResponse struct {
+	// Now indicates the current time, as seconds since 1/1/1970
+	Now int64 `json:"now"`
 }
 
 // WatchRequest is an object sent to the /watch http endpoint, to indicate that
@@ -79,7 +87,7 @@ type GetWatchesResponse struct {
 type TimeTrackerAPI interface {
 	Watch(req *WatchRequest) error
 	GetWatches(req *GetWatchesRequest) (*GetWatchesResponse, error)
-	Tick(req *TickRequest) error
+	Tick(req *TickRequest) (*TickResponse, error)
 	GetIntervals(req *GetIntervalsRequest) (*GetIntervalsResponse, error)
 	Clear() error
 }

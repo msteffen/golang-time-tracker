@@ -234,14 +234,21 @@ func watchCmd() *cobra.Command {
 func tickCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "tick <label>",
-		Short: "Append a tick (work event) with the given label",
-		Long:  "Append a tick (work event) with the given label",
+		Short: "Append a tick (work event) with the given label, or print the "+
+		"server's current time",
+		Long:  "Append a tick (work event) with the given label, or print the "+
+		"server's current time",
 		Run: BoundedCommand(1, 1, func(args []string) error {
 			c, err := getCLIClient(address)
 			if err != nil {
 				return err
 			}
-			return c.Tick(args[0])
+			now, err := c.Tick(args[0])
+			if err != nil {
+				return err
+			} else if args[0] == "" {
+				fmt.Printf("
+			}
 		}),
 	}
 }
